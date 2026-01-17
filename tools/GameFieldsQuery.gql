@@ -1,0 +1,155 @@
+fragment GameFields on GameType {
+  id
+  awards {
+    id
+    displayTitle
+    category {
+      source {
+        awardName
+        sourceName
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+  cacheKey
+  closingAt
+  communityRatingCount
+  communityScoreBucket
+  communityScorePercentages {
+    percentage
+    rating
+    __typename
+  }
+  coupons(limit: 1) {
+    id
+    __typename
+  }
+  description
+  difficulty
+  gameimageSet {
+    order
+    imageId
+    __typename
+  }
+  hasAwards
+  hasBookings
+  isCompleted @include(if: $isUser)
+  isPromoted
+  isScary
+  isSaved @include(if: $isUser)
+  kind
+  gameLocation: location {
+    company {
+      id
+      name
+      slug
+      url
+      __typename
+    }
+    location {
+      coordinates
+      __typename
+    }
+    displayName
+    id
+    slug
+    __typename
+  }
+  name
+  minutes
+  openingAt
+  overallRating @include(if: $isUser)
+  playersMax
+  playersMin
+  primaryCategory {
+    id
+    name
+    slug
+    parent {
+      id
+      name
+      slug
+      __typename
+    }
+    __typename
+  }
+  promotedBidId
+  secondaryCategories {
+    id
+    name
+    slug
+    __typename
+  }
+  slug
+  status
+  tags {
+    id
+    __typename
+  }
+  timeslots(limit: 10) {
+    datetime
+    available
+    __typename
+  }
+  __typename
+}
+
+fragment LocationFields on LocationType {
+  id
+  cacheKey
+  company {
+    id
+    name
+    slug
+    __typename
+  }
+  displayName
+  games {
+    ...GameFields
+    __typename
+  }
+  locality {
+    locality
+    region
+    __typename
+  }
+  slug
+  __typename
+}
+
+query Games($boundingBox: CoordinateBoundingBox, $distance: Int, $escapedOnly: Boolean, $excludeNotPlayed: Boolean, $excludePlayed: Boolean, $excludeSaved: Boolean, $filters: GameFiltersInput, $groupByLocation: Boolean, $includeAllGames: Boolean, $isUser: Boolean!, $lat: Float, $lng: Float, $page: Int, $pageSize: Int, $query: String, $savedOnly: Boolean, $sortBy: GameSortByOptions, $userId: ID, $userIds: [ID], $client: String) {
+  games(
+    boundingBox: $boundingBox
+    distance: $distance
+    escapedOnly: $escapedOnly
+    excludeNotPlayed: $excludeNotPlayed
+    excludePlayed: $excludePlayed
+    excludeSaved: $excludeSaved
+    filters: $filters
+    groupByLocation: $groupByLocation
+    includeAllGames: $includeAllGames
+    lat: $lat
+    lng: $lng
+    page: $page
+    pageSize: $pageSize
+    query: $query
+    savedOnly: $savedOnly
+    sortBy: $sortBy
+    userId: $userId
+    userIds: $userIds
+    client: $client
+  ) {
+    count
+    hasNext
+    page
+    pages
+    objects {
+      ...GameFields
+      ...LocationFields
+      __typename
+    }
+    __typename
+  }
+}

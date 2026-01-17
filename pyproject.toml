@@ -1,0 +1,14 @@
+[project]
+name = "escape-trip-planner"
+version = "0.1.0"
+description = "AI enabled escape room trip planner"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "geopy>=2.4.1",
+    "httpx>=0.28.1",
+    "langchain-anthropic>=1.3.1",
+    "langchain-core>=1.2.7",
+    "langgraph>=1.0.6",
+    "python-dotenv>=1.2.1",
+]
