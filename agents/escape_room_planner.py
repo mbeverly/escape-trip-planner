@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from util.utils import calculate_backoff_delay, MAX_RETRIES
 
+import langsmith
 
 MODEL_NAME = "claude-sonnet-4-20250514"
 
@@ -165,7 +166,19 @@ def get_escape_room_recommendations(region: str, preferences: str = "") -> str:
         query += f" Preferences: {preferences}"
 
     logger.info("[TOOL] Invoking local escape room guide agent...")
-    result = guide_agent.invoke({"messages": [HumanMessage(content=query)]})
+
+    # Use LangSmith trace context for sub-agent
+    with langsmith.trace(
+        name=f"Guide: {region}",
+        run_type="chain",
+        tags=["guide", "recommendations", region.lower().replace(" ", "-")],
+        metadata={
+            "region": region,
+            "preferences": preferences or "none",
+        },
+    ):
+        result = guide_agent.invoke({"messages": [HumanMessage(content=query)]})
+
     final_message = result["messages"][-1]
 
     content = final_message.content if isinstance(final_message.content, str) else str(final_message.content)
@@ -196,7 +209,19 @@ def check_room_availability(
 
     try:
         logger.info("[TOOL] Invoking reservationist agent...")
-        result = check_availability_sync(url, room_name, target_date)
+
+        # Use LangSmith trace context for sub-agent
+        with langsmith.trace(
+            name=f"Reservationist: {room_name}",
+            run_type="chain",
+            tags=["reservationist", "availability", "browser"],
+            metadata={
+                "room_name": room_name,
+                "url": url,
+                "target_date": target_date,
+            },
+        ):
+            result = check_availability_sync(url, room_name, target_date)
 
         if result.error:
             logger.warning(f"[TOOL] Availability check failed: {result.error}")
@@ -378,18 +403,36 @@ Please:
 3. Use check_room_availability for each top room to find available time slots within the trip dates
 4. Create a day-by-day itinerary using rooms with CONFIRMED availability
 5. Include all details: times, addresses, themes, difficulty, prices
+6. Include other times reported from the reservationist if they are available 
 
 Make the itinerary engaging and practical!
 """
 
     logger.info("[PLANNER] Invoking planner agent...")
-    result = planner.invoke({
-        "messages": [HumanMessage(content=query)],
-        "region": region,
-        "start_date": start_date,
-        "num_days": num_days,
-        "group_size": group_size,
-    })
+
+    # Use LangSmith trace context for better observability
+    with langsmith.trace(
+        name=f"Trip Planner: {region} ({start_date})",
+        run_type="chain",
+        tags=["planner", "orchestrator", region.lower().replace(" ", "-")],
+        metadata={
+            "region": region,
+            "start_date": start_date,
+            "end_date": end_date,
+            "num_days": num_days,
+            "group_size": group_size,
+            "preferences": preferences or "none",
+        },
+    ):
+        result = planner.invoke(
+            {
+                "messages": [HumanMessage(content=query)],
+                "region": region,
+                "start_date": start_date,
+                "num_days": num_days,
+                "group_size": group_size,
+            },
+        )
 
     logger.info("[PLANNER] Planning complete!")
     logger.info(f"[PLANNER] Total messages in conversation: {len(result['messages'])}")

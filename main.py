@@ -8,6 +8,7 @@ import logging
 from datetime import date, timedelta
 
 from agents.escape_room_planner import plan_escape_room_trip
+from util.utils import save_itinerary
 
 
 def configure_logging(level: int = logging.INFO) -> None:
@@ -58,6 +59,12 @@ def main() -> None:
     )
 
     print(itinerary)
+
+    # Save itinerary to markdown file
+    filepath = save_itinerary(itinerary, region, start_date.isoformat())
+    print()
+    print("=" * 60)
+    print(f"Itinerary saved to: {filepath}")
 
 
 if __name__ == "__main__":

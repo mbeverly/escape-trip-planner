@@ -13,6 +13,3 @@ wheels/
 
 data
 data/*
-
-# Generated itineraries
-itineraries/
