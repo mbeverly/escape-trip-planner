@@ -33,6 +33,8 @@ fragment GameFields on GameType {
     imageId
     __typename
   }
+  privacy
+  minimumAge
   hasAwards
   hasBookings
   isCompleted @include(if: $isUser)
@@ -40,6 +42,10 @@ fragment GameFields on GameType {
   isScary
   isSaved @include(if: $isUser)
   kind
+  location {
+    phoneNumber
+    address
+  }
   gameLocation: location {
     company {
       id

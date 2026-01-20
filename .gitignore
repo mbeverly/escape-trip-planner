@@ -11,5 +11,8 @@ wheels/
 
 .env
 
-dump
-dump/*
+data
+data/*
+
+# Generated itineraries
+itineraries/

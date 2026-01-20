@@ -1,56 +1,183 @@
 # Escape Trip Planner
 
-An AI-powered tool that searches for escape rooms in a specified area and schedules escape room trips.
+An AI-powered application that helps plan multi-day escape room adventures. The system searches for highly-rated escape rooms in a region, checks booking availability, and creates optimized itineraries.
 
-## Current Implementation
+## Features
 
-### Morty Agent (`agents/morty_agent.py`)
+- **Escape Room Discovery**: Search for escape rooms using [Morty](https://mortyapp.com), sorted by community ratings and awards
+- **Automated Availability Checking**: Uses browser automation (Playwright via MCP) to check real-time booking availability
+- **Intelligent Trip Planning**: Creates 3-4 day itineraries with rooms grouped by location to minimize travel time
+- **Rate Limit Handling**: Built-in exponential backoff with jitter for reliable API interactions
 
-A LangGraph agent that searches for escape rooms using the [Morty API](https://mortyapp.com). The agent:
+## Architecture
 
-- Uses Claude (claude-sonnet-4) with tool calling to search for escape rooms by region
-- Returns structured output as a list of `EscapeRoom` objects with:
-  - Company name, room name, description
-  - Community score, awards, difficulty
-  - Location (lat/long), duration, player count
-  - URL
+The application uses a multi-agent architecture built with [LangGraph](https://github.com/langchain-ai/langgraph):
 
-**Graph structure:** `START -> agent -> (tools -> agent)* -> extract -> END`
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Escape Room Planner                       │
+│                    (Orchestrator Agent)                      │
+└─────────────────────┬───────────────────┬───────────────────┘
+                      │                   │
+                      ▼                   ▼
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│   Local Escape Room Guide   │ │  Escape Room Reservationist │
+│   (Recommendation Agent)    │ │   (Availability Agent)      │
+└──────────────┬──────────────┘ └──────────────┬──────────────┘
+               │                               │
+               ▼                               ▼
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│        Morty            │ │   Playwright MCP Server     │
+│   (Escape Room Database)    │ │   (Browser Automation)      │
+└─────────────────────────────┘ └─────────────────────────────┘
+```
 
-### Tools (`tools/tools.py`)
+### Agents
 
-- `search_escape_rooms(region)` - Searches the Morty GraphQL API for escape rooms near a given region
+| Agent | Description | Tools |
+|-------|-------------|-------|
+| **Escape Room Planner** | Orchestrates trip planning by coordinating other agents | `get_escape_room_recommendations`, `check_room_availability` |
+| **Local Escape Room Guide** | Searches and recommends escape rooms based on ratings, themes, and preferences | `search_escape_rooms` |
+| **Escape Room Reservationist** | Navigates booking websites to find available time slots | Playwright browser automation |
 
-## Setup
+## Installation
 
-1. Install dependencies (requires Python 3.13+):
+### Prerequisites
+
+- Python 3.13+
+- [uv](https://github.com/astral-sh/uv) package manager
+- Node.js 18+ (for Playwright MCP server)
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/escape-trip-planner.git
+   cd escape-trip-planner
+   ```
+
+2. Install dependencies:
    ```bash
    uv sync
    ```
 
-2. Create a `.env` file with your API key:
-   ```
-   ANTHROPIC_API_KEY=your_key_here
+3. Create a `.env` file with your API key:
+   ```bash
+   ANTHROPIC_API_KEY=your_api_key_here
    ```
 
-3. Run the agent:
-   ```bash
-   uv run python -m agents.morty_agent
-   ```
+## Usage
+
+### Plan a Trip
+
+```python
+from agents import plan_escape_room_trip
+
+itinerary = plan_escape_room_trip(
+    region="Boston",
+    start_date="2026-02-01",
+    num_days=4,
+    group_size=4,
+    preferences="Mix of difficulty levels, prefer mystery and adventure themes"
+)
+
+print(itinerary)
+```
+
+Or run from the command line:
+
+```bash
+uv run python -m agents.escape_room_planner
+```
+
+### Search for Escape Rooms
+
+```python
+from agents import create_guide_graph
+from langchain_core.messages import HumanMessage
+
+guide = create_guide_graph()
+result = guide.invoke({
+    "messages": [HumanMessage(content="Find highly rated escape rooms in Los Angeles")]
+})
+
+print(result["messages"][-1].content)
+```
+
+Or run from the command line:
+
+```bash
+uv run python -m agents.local_escape_room_guide
+```
+
+### Check Room Availability
+
+```python
+from agents import check_availability_sync
+
+availability = check_availability_sync(
+    url="https://example-escape-room.com",
+    experience_name="The Haunted Mansion",
+    target_date="2026-02-15"
+)
+
+print(f"Available slots: {availability.available_slots}")
+print(f"Notes: {availability.booking_notes}")
+```
+
+## Project Structure
+
+```
+escape-trip-planner/
+├── agents/
+│   ├── __init__.py
+│   ├── local_escape_room_guide.py    # Recommendation agent
+│   ├── escape_room_reservationist.py # Availability checking agent
+│   └── escape_room_planner.py        # Orchestrator agent
+├── tools/
+│   ├── __init__.py
+│   ├── tools.py                      # LangChain tools
+│   └── GameFieldsQuery.gql           # GraphQL query for Morty
+├── util/
+│   ├── __init__.py
+│   └── utils.py                      # Shared utilities
+├── data/                             # Cached API responses
+├── pyproject.toml
+├── README.md
+└── .env                              # API keys (not in repo)
+```
 
 ## Dependencies
 
-- `langchain-anthropic` / `langgraph` - Agent framework
-- `pydantic` - Structured output models
-- `httpx` - HTTP client for Morty API
-- `geopy` - Geocoding regions to coordinates
-- `python-dotenv` - Environment variable management
+- **langchain-anthropic** / **langgraph** - Agent framework with Claude integration
+- **mcp** - Model Context Protocol for Playwright integration
+- **httpx** - HTTP client for API requests
+- **geopy** - Geocoding regions to coordinates
+- **pydantic** - Data validation and structured outputs
+- **python-dotenv** - Environment variable management
 
-## Planned Features
+## Configuration
 
-1. Playwright MCP agent to scrape booking times from suggested rooms
-2. Scheduling agent to generate optimized trip schedules (minimizing travel time)
+### Environment Variables
 
-## Notes
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ANTHROPIC_API_KEY` | API key for Claude | Yes |
 
-- API rate limits and costs should be considered when running the agent
+### Rate Limiting
+
+The application includes built-in rate limit handling with:
+- Maximum 5 retries
+- Exponential backoff starting at 60 seconds
+- Random jitter to prevent thundering herd
+
+## API Data Source
+
+Escape room data is sourced from the [Morty](https://mortyapp.com), which provides:
+- Community ratings and reviews
+- Award information
+- Room details (difficulty, duration, player counts)
+- Location data
+
+Results are cached locally for 30 days to minimize API calls.
+
